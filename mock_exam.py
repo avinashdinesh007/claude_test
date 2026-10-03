@@ -1,6 +1,7 @@
 #!/usr/bin/env python3
 """CCDV-F style mock exam: run `python3 mock_exam.py` and the exam opens in your browser."""
 import argparse
+import hashlib
 import json
 import threading
 import time
@@ -357,7 +358,7 @@ def main():
     count = min(a.count, len(questions))
     cfg = {"count": count, "minutes": a.minutes, "pass_percent": a.pass_percent, "marks_per_question": a.marks,
            "shuffle": not a.no_shuffle, "show_domain": a.show_domain,
-           "bank_hash": f"{Path(a.questions).stem}_{len(questions)}"}
+           "bank_hash": hashlib.sha1(json.dumps(questions).encode()).hexdigest()[:12]}
     server = ThreadingHTTPServer(("127.0.0.1", a.port), make_handler(build_page(questions, cfg)))
     url = f"http://127.0.0.1:{a.port}/"
     print(f"CCDV-F mock exam: {count} questions (bank of {len(questions)}), {a.minutes} minutes, "

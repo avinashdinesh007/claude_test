@@ -15,6 +15,13 @@ Requires only Python 3 (no packages). The exam opens in your browser at http://1
 - 120-minute countdown with auto-submit, question palette, mark for review
 - Detailed report with correct answers and explanations; attempts saved to `results/`
 
+## Question sets
+
+- `questions.json` — **Set 2** (default, new): 57-question bank
+- `questions_set1.json` — Set 1 (previous exam): `python3 mock_exam.py --questions questions_set1.json`
+
+Progress is stored per question set, so switching sets never mixes up saved attempts.
+
 ## Options
 
 ```
