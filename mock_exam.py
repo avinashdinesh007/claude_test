@@ -344,7 +344,8 @@ def make_handler(page):
 
 def main():
     p = argparse.ArgumentParser(description="CCDV-F browser mock exam")
-    p.add_argument("--questions", default=str(BASE / "questions.json"), help="question bank JSON file")
+    p.add_argument("--set", type=int, default=3, help="question set number (default 3 = newest)")
+    p.add_argument("--questions", default=None, help="custom question bank JSON file (overrides --set)")
     p.add_argument("--count", type=int, default=53, help="questions per attempt, drawn from the bank (default 53)")
     p.add_argument("--minutes", type=int, default=120, help="exam duration in minutes (default 120)")
     p.add_argument("--pass-percent", type=float, default=70, help="pass cut-off percentage (default 70)")
@@ -354,14 +355,17 @@ def main():
     p.add_argument("--port", type=int, default=8765)
     a = p.parse_args()
 
-    questions = json.loads(Path(a.questions).read_text())
+    bank = Path(a.questions) if a.questions else BASE / f"questions_set{a.set}.json"
+    if not bank.exists():
+        raise SystemExit(f"Question bank not found: {bank}")
+    questions = json.loads(bank.read_text())
     count = min(a.count, len(questions))
     cfg = {"count": count, "minutes": a.minutes, "pass_percent": a.pass_percent, "marks_per_question": a.marks,
            "shuffle": not a.no_shuffle, "show_domain": a.show_domain,
            "bank_hash": hashlib.sha1(json.dumps(questions).encode()).hexdigest()[:12]}
     server = ThreadingHTTPServer(("127.0.0.1", a.port), make_handler(build_page(questions, cfg)))
     url = f"http://127.0.0.1:{a.port}/"
-    print(f"CCDV-F mock exam: {count} questions (bank of {len(questions)}), {a.minutes} minutes, "
+    print(f"CCDV-F mock exam [{bank.name}]: {count} questions (bank of {len(questions)}), {a.minutes} minutes, "
           f"{count * a.marks:.0f} marks, pass >= {a.pass_percent}%")
     print(f"Open {url}  (Ctrl+C to stop the server)")
     threading.Thread(target=lambda: (time.sleep(0.6), webbrowser.open(url)), daemon=True).start()

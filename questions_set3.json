@@ -1,0 +1,856 @@
+[
+{
+"domain": "Systems Life Cycle & Requirements",
+"type": "single",
+"q": "A telecom's team has built, in isolation, a prompt-assembly service, a retrieval index, and a ticketing-system connector for a Claude-based support assistant. They are now wiring the components together in a staging environment, exercising the interfaces between them with end-to-end scenarios, and running the evaluation suite to confirm the combined system meets the signed-off acceptance criteria. No live customer traffic reaches the system. Which systems life cycle phase is this?",
+"options": [
+"Integration and testing",
+"Implementation",
+"System design",
+"Operations and maintenance"
+],
+"answer": [
+0
+],
+"exp": "The individual components already exist; combining them and verifying the assembled system against acceptance criteria is integration and testing. Implementation is the phase in which the individual components are built, and nothing is live yet, so this is not operations and maintenance."
+},
+{
+"domain": "Systems Life Cycle & Requirements",
+"type": "single",
+"q": "A legal-services firm's business requirement states: \"Paralegals must be able to verify where in the source contract each assistant statement comes from.\" The approved architecture integrates directly with the Messages API and supplies each contract as a document content block. Which system requirement follows from combining the business requirement with this architecture?",
+"options": [
+"Enable citations on the document blocks and render each returned citation as a link to the cited passage in the review interface",
+"Instruct Claude in the system prompt to state the page number of every sentence it writes, based on its own reading of the contract",
+"Set temperature to zero so each statement is regenerated identically and can later be matched back to its source passage",
+"Store every response in a database so paralegals can search earlier answers by the contract's section names"
+],
+"answer": [
+0
+],
+"exp": "Citations are the API mechanism that ties generated statements to passages in the supplied documents, so the derived requirement is to enable them and surface them in the UI. Page numbers produced from prompt instructions are unverifiable, temperature does not create traceability, and searching stored answers does not show where a statement came from."
+},
+{
+"domain": "Systems Life Cycle & Requirements",
+"type": "multi",
+"q": "Requirements for a Claude-based customer-support assistant are being classified. Which TWO statements are non-functional requirements? (Select TWO.)",
+"options": [
+"Time to first streamed token must stay under 1.5 seconds at the 95th percentile",
+"All traffic between the assistant and internal systems must be encrypted in transit",
+"The assistant shall hand the conversation to a human agent when a customer asks for a refund above $200",
+"The assistant shall generate a one-paragraph summary of the conversation when it hands off to a human"
+],
+"answer": [
+0,
+1
+],
+"exp": "Latency targets and security properties describe how well the system must perform or the qualities it must have, so they are non-functional. Escalating on a refund request and generating a handoff summary are behaviors the system performs, which makes them functional requirements."
+},
+{
+"domain": "Systems Life Cycle & Requirements",
+"type": "multi",
+"q": "A Claude-based claims agent has been live for three months. When a customer disputes an outcome, engineers cannot reconstruct what the agent actually did. Which TWO logging practices make post-incident investigation possible? (Select TWO.)",
+"options": [
+"Record each run's tool calls with their inputs and results, tied together by a correlation ID",
+"Record the prompt version and pinned model ID used for each request, along with the API request-id",
+"Log only the final answer text, since re-running the original request later reproduces the intermediate steps exactly",
+"Log only HTTP status codes and latency, since response bodies can always be retrieved from Anthropic afterwards"
+],
+"answer": [
+0,
+1
+],
+"exp": "The API is stateless and does not keep your requests for you to retrieve, and model output is not guaranteed to be reproducible. To reconstruct a run you must log the tool-call trace plus the versions (prompt, model) and identifiers such as the request-id. Final text alone or status codes alone cannot explain how a decision was reached."
+},
+{
+"domain": "Messages API",
+"type": "single",
+"q": "To save tokens, a chat service trims its stored history by deleting the user messages that carried tool_result blocks while keeping the assistant messages that contain the matching tool_use blocks. The next request to the Messages API fails with a 400 error. What is the correct fix?",
+"options": [
+"Keep every tool_use block paired with a tool_result block in the user message that immediately follows it, or trim the pair together",
+"Set disable_parallel_tool_use to true so the API tolerates tool_use blocks that have no matching result in the history",
+"Raise max_tokens on the request, since the error means the history left too little room for a result to be generated",
+"Mark the retained assistant messages with is_error so the API treats the unmatched tool_use blocks as failed calls"
+],
+"answer": [
+0
+],
+"exp": "Each tool_use block must be answered by a tool_result with the same tool_use_id in the very next user message; an orphaned tool_use is a malformed request. If history must be shortened, remove the pair together (or use context editing). disable_parallel_tool_use, max_tokens, and is_error do not relax this pairing rule."
+},
+{
+"domain": "Messages API",
+"type": "single",
+"q": "A document-tagging service typically produces outputs of about 150 tokens, but every request sets max_tokens to 64,000 \"to be safe\". Under moderate concurrency the service receives 429 rate_limit_error responses even though measured output usage is far below the organization's output-tokens-per-minute limit. What is the most likely cause and fix?",
+"options": [
+"Output-token rate limiting is estimated from max_tokens when a request starts, so set max_tokens close to the realistic output size",
+"429 is returned when max_tokens exceeds the model's context window, so lower it until it fits within the window",
+"The requests exceed the request-size limit, so switch to streaming so that large outputs are counted differently",
+"Very large max_tokens values disable prompt caching, so enable the 1-hour TTL to restore the lost throughput"
+],
+"answer": [
+0
+],
+"exp": "Output-tokens-per-minute accounting initially estimates usage from max_tokens and adjusts it when the request finishes, so inflated max_tokens values consume rate-limit headroom and can trigger 429s. Exceeding the context window is a 400 invalid_request_error, not a 429, and streaming and cache TTL do not change this accounting."
+},
+{
+"domain": "Messages API",
+"type": "single",
+"q": "A retailer launches a new Claude-powered feature, and traffic jumps from near zero to a very high steady rate within a few minutes. The service immediately receives 429 errors even though the workspace's configured limits are comfortably above the sustained rate. What explains this and how should it be addressed?",
+"options": [
+"Sharp, sudden increases in usage can trip acceleration limits, so ramp traffic up gradually and keep usage patterns consistent",
+"The 429 responses mean Anthropic's servers are overloaded, so wait for a 529 status before retrying any request",
+"New features must be registered with Anthropic before launch, and unregistered traffic is throttled to a fraction of the limits",
+"Rate limits apply per API key, so spreading the load across more keys in the same workspace removes the throttling"
+],
+"answer": [
+0
+],
+"exp": "In addition to the published limits, the API can return 429s when an organization's usage increases sharply (acceleration limits). Ramping up gradually avoids this. Server overload is reported as 529 overloaded_error, there is no feature registration step, and limits are applied at the organization or workspace level rather than per key."
+},
+{
+"domain": "Messages API",
+"type": "single",
+"q": "A chat client appends the user's quick follow-up as a second consecutive user message without waiting for an assistant reply, so the messages array ends with two user-role messages in a row. What does the Messages API do with this request?",
+"options": [
+"It combines consecutive same-role turns into a single turn, so Claude sees both messages together",
+"It rejects the request with a 400 error, since roles must strictly alternate between user and assistant",
+"It discards the earlier user message and answers only the most recent one in the array",
+"It answers each user message separately and returns two assistant messages in one response"
+],
+"answer": [
+0
+],
+"exp": "The Messages API merges consecutive user or assistant turns into one turn, so no 400 is raised and nothing is dropped; Claude responds to the combined content. It never returns multiple assistant messages for one request."
+},
+{
+"domain": "Messages API",
+"type": "single",
+"q": "A nightly job that has run for months suddenly fails with HTTP 404 not_found_error on every Messages request. The request body, API key, and workspace are unchanged, and the pinned model ID appears in Anthropic's recent retirement announcements. What is the correct response?",
+"options": [
+"Migrate to a currently available model ID, validating with the eval suite and checking the migration guide for changed parameters",
+"Rotate the API key, since a not_found_error means the key was deleted from the workspace",
+"Retry with exponential backoff, since a 404 indicates a temporary routing failure inside the API",
+"Request additional workspace permissions, since not_found_error means the key lacks access to that model"
+],
+"answer": [
+0
+],
+"exp": "A retired model ID no longer resolves, which surfaces as not_found_error; the fix is to move to a supported model and re-validate behavior. Invalid keys produce 401 authentication_error, missing permissions produce 403 permission_error, and transient server problems are 500 or 529, so rotating keys, requesting permissions, or retrying will not help."
+},
+{
+"domain": "Messages API",
+"type": "single",
+"q": "A developer uploads a contract PDF to the Files API and later tries to download it by file ID to give users their original copy back. The download request is rejected. What is the accurate explanation?",
+"options": [
+"Only files created by Anthropic tools such as code execution or Skills can be downloaded; uploaded files cannot, so keep your own copy",
+"Uploaded files can be downloaded only during the first hour after upload, after which they are archived and require a support request",
+"Downloads are supported only for files over 32 MB, because smaller files are returned inline in the upload response",
+"Downloading requires the file to be attached to a Messages request first, after which it can be retrieved at any time"
+],
+"answer": [
+0
+],
+"exp": "The Files API lets you upload files and reference them in requests, but only files generated by code execution or Skills can be downloaded. Applications that need the original must retain it themselves."
+},
+{
+"domain": "Tool Use",
+"type": "single",
+"q": "An agent has tools from three internal services named search, search_tickets, find_items, and lookup, each with a brief, overlapping description. It often calls the wrong search tool and supplies parameters that belong to another service. Following Anthropic's guidance on writing tools for agents, which change helps most?",
+"options": [
+"Namespace the tool names by service or resource (for example jira_search_issues) and write descriptions explaining what each does and when to use it",
+"Merge all search functions into one tool that takes a single free-text query and lets backend code guess which service to search",
+"Force a single tool with tool_choice on every request, so the model never has to choose between the available tools",
+"Shorten each description to a few words, so the model can compare the tool names more quickly when it selects one"
+],
+"answer": [
+0
+],
+"exp": "Clear naming (prefixing by service or resource) and detailed descriptions that explain purpose and when to use the tool are the most effective ways to reduce wrong-tool selection. Collapsing everything into an ambiguous free-text tool, forcing one tool, or shortening descriptions removes the information the model needs."
+},
+{
+"domain": "Tool Use",
+"type": "single",
+"q": "A data-analysis agent uses Anthropic's code execution tool. The generated Python script tries to download a dataset from an external HTTPS URL and to install an extra package at runtime, and both steps fail. What is the correct understanding?",
+"options": [
+"The container has no internet access, so supply data through the Files API or the prompt, or fetch it with a client tool, and use the preinstalled libraries",
+"The sandbox permits outbound HTTPS only to approved package indexes, which you enable by adding allowed_domains to the tool definition for each request",
+"The failures indicate a memory limit in the container, so raise max_tokens to give the sandbox more resources while the script runs and installs packages",
+"The tool runs on the application's own host, so network access for downloads and installs depends on that host's firewall and proxy configuration rules"
+],
+"answer": [
+0
+],
+"exp": "Code execution runs server-side in Anthropic's sandboxed container, which has no internet access; data must be provided via the Files API or the prompt, and available libraries are those preinstalled. It is not run on your host, and max_tokens is unrelated to container resources."
+},
+{
+"domain": "Tool Use",
+"type": "multi",
+"q": "A compliance team enables Anthropic's web_search server tool for a research assistant. They want to cap the search cost of each request and limit results to a small set of vetted sources. Which TWO settings on the tool definition achieve this? (Select TWO.)",
+"options": [
+"max_uses, to cap how many searches Claude can run in a single request",
+"allowed_domains, to restrict the domains that search results may come from",
+"tool_choice set to none, which limits the tool to domains already used earlier in the conversation",
+"disable_parallel_tool_use set to true, which restricts searches to trusted domains"
+],
+"answer": [
+0,
+1
+],
+"exp": "The web search tool supports max_uses to limit searches per request and domain controls such as allowed_domains to restrict sources. tool_choice none simply prevents tool use, and disable_parallel_tool_use only affects whether several tool calls can be made in one turn."
+},
+{
+"domain": "Tool Use",
+"type": "multi",
+"q": "A QA team gives Claude the computer use tool to operate a web application's admin interface. Which TWO safeguards follow Anthropic's guidance? (Select TWO.)",
+"options": [
+"Run the environment in a dedicated virtual machine or container with minimal privileges and no access to sensitive credentials",
+"Require human confirmation before consequential actions such as submitting forms or changing account settings",
+"Allow the environment unrestricted internet access so Claude can look up instructions whenever it gets stuck",
+"Rely on Claude's built-in safeguards alone, since content shown on screen cannot influence what it does"
+],
+"answer": [
+0,
+1
+],
+"exp": "Computer use is client-executed and exposed to prompt injection from on-screen content, so Anthropic recommends isolated, minimally privileged environments and human confirmation for consequential actions. Open internet access increases exposure, and built-in safeguards are not a substitute for these controls."
+},
+{
+"domain": "MCP",
+"type": "single",
+"q": "An MCP server author wants to offer a reusable, parameterized workflow template (for example \"summarize this incident\") that users explicitly choose from a menu in the client, rather than something the model decides to invoke on its own. Which MCP primitive fits?",
+"options": [
+"Prompts, which are user-controlled templates the client surfaces for explicit selection",
+"Tools, which are exposed to the model so it decides when to call them",
+"Resources, which are application-controlled data that the client can attach as context",
+"Sampling, which lets the server request a completion from the client's model"
+],
+"answer": [
+0
+],
+"exp": "MCP distinguishes who controls each primitive: tools are model-controlled, resources are application-controlled, and prompts are user-controlled templates chosen explicitly (in Claude Code they appear as slash commands). Sampling is a client capability that lets the server ask for an LLM completion."
+},
+{
+"domain": "MCP",
+"type": "multi",
+"q": "A developer builds a local stdio MCP server. During testing the client fails to parse messages because the server prints debug statements, and when a tool's database query fails the server returns a protocol-level error, so the model never sees why. Which TWO fixes follow MCP server-authoring guidance? (Select TWO.)",
+"options": [
+"Write logs to stderr or a log file and never to stdout, which carries the protocol messages",
+"Report tool execution failures inside the tool result with isError set to true and a descriptive message so Claude can adapt",
+"Switch to the HTTP transport, because stdio servers cannot write any diagnostic output",
+"Return an empty successful result on failure so the client never has to handle errors"
+],
+"answer": [
+0,
+1
+],
+"exp": "On stdio, stdout is the JSON-RPC channel, so stray prints corrupt it; diagnostics go to stderr. Errors that occur while a tool runs should be returned in the result with isError true so the model can see and react, reserving protocol errors for malformed requests. Stdio servers can log to stderr, and hiding failures behind empty results prevents recovery."
+},
+{
+"domain": "MCP",
+"type": "single",
+"q": "An engineer adds a remote MCP server to Claude Code with: claude mcp add --transport http analytics https://mcp.example.com/mcp. The server requires OAuth, and none of its tools appear. What is the correct next step?",
+"options": [
+"Run /mcp inside Claude Code and complete the server's OAuth authentication flow in the browser",
+"Paste an OAuth client secret into CLAUDE.md so Claude Code reads it at the start of each session",
+"Switch to --transport stdio, since remote MCP servers cannot use OAuth",
+"Add the server name to permissions.allow in settings.json, which triggers the OAuth sign-in automatically"
+],
+"answer": [
+0
+],
+"exp": "For remote servers that use OAuth, Claude Code authenticates through the /mcp command, which walks you through the browser-based flow. Secrets must never be put in CLAUDE.md, remote servers do support OAuth, and permission rules govern tool approval rather than authentication."
+},
+{
+"domain": "MCP",
+"type": "single",
+"q": "An MCP server's delete_project tool sometimes finds two projects matching the name the model supplied. The author wants the server to ask the end user which one they mean, in the middle of the tool call, without failing the call or guessing. Which MCP capability is designed for this?",
+"options": [
+"Elicitation, which lets the server request structured input from the user through the client",
+"Sampling, which lets the server request a model completion to choose between the projects",
+"Roots, which tell the server which directories and projects the client allows it to see",
+"Resource subscriptions, which notify the server when the list of projects changes"
+],
+"answer": [
+0
+],
+"exp": "Elicitation lets a server pause and ask the user for additional information through the client during an operation. Sampling asks the client's model, not the user; roots define filesystem boundaries; subscriptions are about change notifications."
+},
+{
+"domain": "Claude Code",
+"type": "single",
+"q": "A repository's committed .claude/settings.json sets a default model for the whole team. One engineer wants a different model only for themselves, only in this repository, without changing what teammates get. Where should the setting go?",
+"options": [
+".claude/settings.local.json, which is personal to the project and takes precedence over the shared project file",
+"~/.claude/settings.json, since user-level settings override a project's committed settings",
+"CLAUDE.local.md, since personal instructions there override the model chosen in settings files",
+"A second .claude/settings.json in a subdirectory, since the deeper file always wins over the root one"
+],
+"answer": [
+0
+],
+"exp": "The local project settings file is gitignored and has higher precedence than the shared project settings, so it can override them for one person. User-level settings rank below project settings. CLAUDE.local.md holds instructions, not configuration, and nested settings files are not the mechanism for overrides."
+},
+{
+"domain": "Claude Code",
+"type": "single",
+"q": "A team writes a /deploy-production skill whose steps push to live infrastructure. Claude has begun invoking it on its own after loosely related requests. The team wants it to run only when a person explicitly types the command. What should they configure?",
+"options": [
+"Set disable-model-invocation: true in the skill's frontmatter so Claude cannot trigger it automatically",
+"Shorten the skill's description to one word so Claude's matching rarely selects it",
+"Add 'never run automatically' to the skill's body, since Claude reads the body before deciding whether to use the skill",
+"Move the skill into ~/.claude/skills, since user-level skills are never invoked automatically"
+],
+"answer": [
+0
+],
+"exp": "Frontmatter can disable model invocation so the skill is available only through explicit user invocation. Claude decides whether to use a skill from its name and description before loading the body, so body text cannot prevent triggering, and moving the skill or shortening the description does not give a guarantee."
+},
+{
+"domain": "Claude Code",
+"type": "single",
+"q": "A custom code-review subagent's instructions tell it to delegate dependency analysis to a second subagent, but the delegation never happens. What is the accurate explanation and fix?",
+"options": [
+"Subagents cannot spawn other subagents, so the main conversation should orchestrate both in sequence and pass the results between them",
+"A subagent can delegate only if its model field is set to inherit, so add that field to the reviewer's frontmatter and restart the session",
+"Nested delegation works only when the session runs with --dangerously-skip-permissions, so the team must enable that flag for the reviewer",
+"Subagents may nest two levels deep, but each child must use a different model than its parent, so the dependency agent needs its own model"
+],
+"answer": [
+0
+],
+"exp": "In Claude Code a subagent cannot launch further subagents. When work needs several specialists, the main conversation chains them, or the specialist behavior is split into skills or commands that the main agent drives."
+},
+{
+"domain": "Claude Code",
+"type": "single",
+"q": "A team wants Claude Code to receive the current git branch name and the open ticket ID as extra context with every prompt the engineer submits, without the engineer typing it. Which mechanism fits?",
+"options": [
+"A UserPromptSubmit hook whose command prints the information, which is added to the context for each prompt",
+"A SessionStart hook, which runs once at launch and stays accurate even when the branch changes later in the session",
+"A PostToolUse hook matching Bash, which injects the branch name after every shell command Claude runs",
+"A line in CLAUDE.md telling Claude to run git branch before each response, which guarantees the lookup happens"
+],
+"answer": [
+0
+],
+"exp": "UserPromptSubmit hooks run each time a prompt is submitted, and what they print can be added as context. SessionStart runs once, so the data would go stale when the branch changes. PostToolUse runs after tool calls rather than prompts, and CLAUDE.md instructions are not guaranteed to be followed."
+},
+{
+"domain": "Claude Code",
+"type": "single",
+"q": "An engineer wants to reopen a specific conversation from last week in the same repository, not simply the most recent one, and continue with its full history. Which approach fits?",
+"options": [
+"claude --resume, then pick the conversation from the list of earlier sessions",
+"claude --continue, which opens an interactive picker of earlier sessions",
+"claude -p with the old prompt pasted again, since sessions are not persisted between launches",
+"/compact at startup, which reloads the full history of last week's sessions"
+],
+"answer": [
+0
+],
+"exp": "--resume lets you choose from previous conversations, while --continue resumes the most recent one directly without a picker. Sessions are persisted locally, and /compact summarizes the current conversation rather than loading old ones."
+},
+{
+"domain": "Claude Code",
+"type": "single",
+"q": "Two plugins installed in Claude Code each define a command named review. How are the commands kept from colliding?",
+"options": [
+"Plugin commands are namespaced by plugin name, so each is invoked as /plugin-name:review",
+"The plugin installed later silently overwrites the earlier plugin's review command",
+"Claude Code refuses to load the second plugin until one of the commands is renamed",
+"Both commands run one after the other whenever /review is typed, in order of installation"
+],
+"answer": [
+0
+],
+"exp": "Plugin-provided commands are namespaced with the plugin name, which prevents conflicts between plugins that choose the same command name."
+},
+{
+"domain": "Claude Code",
+"type": "single",
+"q": "An engineer has a personal subagent named reviewer in ~/.claude/agents. The repository also commits a different subagent, also named reviewer, in .claude/agents with the team's rules. When the engineer works in this repository, which definition is used?",
+"options": [
+"The project-level one, since project subagents take precedence over user-level subagents with the same name",
+"The user-level one, since personal definitions always override anything stored in a repository",
+"Both are merged, taking the tool list from the user's file and the prompt from the project's file",
+"Neither is loaded; Claude Code reports a name conflict and disables both until one is renamed"
+],
+"answer": [
+0
+],
+"exp": "When a project subagent and a user subagent share a name, the project-level definition takes priority, so the team's version is used inside that repository."
+},
+{
+"domain": "Claude Code",
+"type": "single",
+"q": "A team's CLAUDE.md has grown past 2,000 lines of style rules, per-service runbooks, and historical notes. Engineers report that Claude Code often ignores important rules. Which change best follows Claude Code best practices?",
+"options": [
+"Prune it to concise, broadly applicable guidance, and move task-specific material into skills, subdirectory files, or imports that load only when relevant",
+"Capitalize the most important rules and repeat each one several times throughout the file so that they carry more weight when Claude reads it",
+"Split it into several CLAUDE.md files at the repository root, since all of them are loaded together and the total size no longer matters at all",
+"Replace it with a longer prompt passed through --append-system-prompt at every launch, so that Claude never has to read the file at startup"
+],
+"answer": [
+0
+],
+"exp": "CLAUDE.md is loaded into context every session, so bloat dilutes the rules that matter. Keep it lean and move specialized or situational content to places that load on demand. Emphasis and splitting files that all load do not reduce context load, and a longer system prompt makes the problem worse."
+},
+{
+"domain": "Claude Code",
+"type": "multi",
+"q": "A team asks Claude Code to implement a pricing-rule change and often gets code that looks plausible but fails edge cases. Which TWO practices from Anthropic's Claude Code best practices raise reliability? (Select TWO.)",
+"options": [
+"Give Claude a way to verify its own work, such as failing tests or a command it can run, and have it iterate until they pass",
+"Have Claude explore the relevant code and propose a plan before writing any code, then review the plan",
+"Ask for the full implementation in a single prompt with minimal context so tokens go to code rather than reading",
+"Accept all edits without review and rely on a larger context window so the model does not forget instructions"
+],
+"answer": [
+0,
+1
+],
+"exp": "Anthropic's guidance highlights giving Claude verifiable success criteria (tests, scripts, screenshots) and separating exploration and planning from implementation. Minimal context and unreviewed edits tend to produce exactly the plausible-but-wrong results described."
+},
+{
+"domain": "Claude Code",
+"type": "multi",
+"q": "A team is deciding where each kind of guidance should live in Claude Code. Which TWO pairings are correct? (Select TWO.)",
+"options": [
+"Conventions that apply to nearly every task in the repository: CLAUDE.md",
+"A specialized read-only reviewer that needs its own context window and restricted tools: a subagent",
+"A rule that must be enforced every time without exception, such as blocking edits to a directory: a stronger sentence in CLAUDE.md",
+"A static style guide to be consulted by several different Claude applications: a hook that prints it"
+],
+"answer": [
+0,
+1
+],
+"exp": "CLAUDE.md suits always-relevant conventions, and subagents give isolated context and restricted tools for specialized roles. Guaranteed enforcement requires deterministic mechanisms such as permission rules or hooks, not CLAUDE.md wording, and a shared style guide for multiple applications is better packaged as a Skill or MCP resource than printed by a hook."
+},
+{
+"domain": "Agent SDK",
+"type": "single",
+"q": "An Agent SDK run ends and the final result message has the subtype error_max_turns with no complete answer. What does this indicate and how should the team respond?",
+"options": [
+"The run reached the configured max_turns limit before it finished; raise the limit, narrow the task, or resume the session to continue",
+"The model's output exceeded max_tokens, so reduce the effort level until the complete answer fits within a single response from the model",
+"The API returned a 529 overloaded error, so retry the whole run from the start with exponential backoff until the service recovers fully",
+"A PreToolUse hook denied a tool call, so remove the hook from the configuration so that the agent can complete its work without blocking"
+],
+"answer": [
+0
+],
+"exp": "The result message's subtype reports why the run ended; error_max_turns means the turn limit was hit. The remedy is to increase the limit, make the task smaller, or resume the session. Token limits, overload errors, and hook denials surface differently."
+},
+{
+"domain": "Agent SDK",
+"type": "single",
+"q": "A team configures an Agent SDK agent with allowed_tools set to [\"Read\", \"Grep\"], expecting it to be unable to run shell commands. In testing, Bash can still be reached, with a permission prompt or callback rather than a hard block. What is the correct understanding?",
+"options": [
+"allowed_tools only pre-approves the listed tools; others still fall through to the permission mode, so add Bash to disallowed_tools to guarantee it never runs",
+"allowed_tools is honored only in bypassPermissions mode, so in the default permission mode every entry in the list is simply ignored by the SDK",
+"Bash is a core built-in tool that cannot be blocked through any configuration in the SDK, so the team must remove it by forking the package",
+"allowed_tools limits only MCP tools, so the built-in tools must instead be restricted through instructions that are written in the CLAUDE.md file"
+],
+"answer": [
+0
+],
+"exp": "allowed_tools is an auto-approval list, not an exclusive allowlist: unlisted tools are handled by the permission mode or canUseTool callback. To make a tool unavailable regardless of mode, deny it with disallowed_tools (or remove it from the available tool set)."
+},
+{
+"domain": "Agent SDK",
+"type": "multi",
+"q": "A developer defines subagents programmatically in the Claude Agent SDK. Which TWO statements are accurate? (Select TWO.)",
+"options": [
+"Each subagent is defined with a description telling the parent when to delegate, a prompt, and optionally a restricted list of tools",
+"A subagent works in its own fresh context window and returns its final message to the parent, keeping intermediate work out of the parent's context",
+"Subagents automatically inherit the parent's complete conversation history, so no instructions need to be repeated",
+"A subagent may start its own subagents as long as the parent lists them in its tools"
+],
+"answer": [
+0,
+1
+],
+"exp": "Programmatic subagents carry a description, prompt, and optional tool restrictions, and they run in isolated contexts, returning only a final message. They do not inherit conversation history and cannot spawn further subagents."
+},
+{
+"domain": "Agent Architecture",
+"type": "multi",
+"q": "An autonomous support agent sometimes calls the same failing tool repeatedly, burning tokens until the context fills. Which TWO changes best address this? (Select TWO.)",
+"options": [
+"Add stopping conditions such as a maximum number of iterations or a cost budget, with escalation to a human when it is reached",
+"Return actionable error messages from tools that say what went wrong and what to try differently",
+"Have the tool handler silently retry the identical call until it succeeds so the model never sees a failure",
+"Raise max_tokens so each turn has enough room for the model to find a way out of the loop"
+],
+"answer": [
+0,
+1
+],
+"exp": "Agents need explicit stopping conditions to stay bounded, and informative errors let the model change strategy instead of repeating itself. Hiding failures prevents adaptation, and a larger output budget does nothing about repeated tool calls."
+},
+{
+"domain": "Agent Architecture",
+"type": "single",
+"q": "A team evaluates a coding agent that can reach the same bug fix through many different sequences of tool calls. Their grader fails any run whose tool-call sequence differs from a recorded reference, and many valid fixes are scored as failures. Which change aligns with Anthropic's guidance on agent evaluations?",
+"options": [
+"Grade the outcome, for example whether the bug is fixed and the tests pass, rather than requiring a specific sequence of steps",
+"Record more reference sequences until every plausible path to a fix is covered by an exact-match comparison",
+"Grade only the wording of the agent's final message, since the sequence of steps is never visible to a grader",
+"Lower the pass threshold to 50% so that more of the valid runs are counted as passing"
+],
+"answer": [
+0
+],
+"exp": "Agents often find valid solutions that designers did not anticipate, so evaluations should check what the agent produced (the end state) rather than the exact path. Enumerating paths is brittle, wording-only grading ignores the work, and a lower threshold hides the grader's flaw."
+},
+{
+"domain": "Agent Architecture",
+"type": "single",
+"q": "A customer-facing assistant must screen each message for policy violations before replying, but the team wants to avoid adding the screening call's latency to every response. Which workflow pattern fits?",
+"options": [
+"Parallelization (sectioning): run the screening call concurrently with the response-generation call and withhold the reply if screening flags the message",
+"Prompt chaining: run screening first and start response generation only after it returns, so the gate always sees the message first",
+"Evaluator-optimizer: loop generation and screening until the evaluator is satisfied, then send the final reply",
+"Routing: classify each message and send flagged ones to a prompt specialized for safe responses"
+],
+"answer": [
+0
+],
+"exp": "Anthropic describes running guardrail or screening checks in parallel with the main response as a sectioning use of parallelization, which hides the screening latency. A sequential chain adds that latency, and evaluator-optimizer and routing solve different problems."
+},
+{
+"domain": "Agent Architecture",
+"type": "single",
+"q": "In a multi-agent research system, the lead agent's context keeps filling with long subagent reports, and details are lost when the lead rewrites subagent findings into summaries for the next stage. Which design does Anthropic's multi-agent guidance suggest?",
+"options": [
+"Let subagents write detailed outputs to an external store such as files or a database, and pass lightweight references back to the lead",
+"Have each subagent return its entire working transcript to the lead agent, so that no detail is lost when the lead moves to the next stage",
+"Share one context window among the lead and all of the subagents, so that every agent sees every tool result and every intermediate finding",
+"Replace the subagents with a single agent that performs all of the research sequentially, so that no handoffs between agents are required"
+],
+"answer": [
+0
+],
+"exp": "Having subagents persist their results externally and return references avoids both context bloat and information loss from repeated summarization. Returning full transcripts or sharing one window defeats the purpose of context isolation, and a single sequential agent gives up parallelism."
+},
+{
+"domain": "Prompt Caching",
+"type": "single",
+"q": "A request places a 5-minute cache breakpoint on an early system block and a 1-hour breakpoint (ttl \"1h\") on a later block. Caching behaves unexpectedly. What is the rule being violated?",
+"options": [
+"Entries with a longer TTL must appear before entries with a shorter TTL, so the 1-hour breakpoint belongs on the earlier, more stable block",
+"All breakpoints in a request must use the same TTL, so mixing 5-minute and 1-hour entries in one request is never allowed by the API",
+"The 1-hour TTL can be applied only to tool definitions, never to system blocks or message blocks, so the later breakpoint is invalid",
+"Shorter TTL entries must come first because they are refreshed more often than long ones, so the 5-minute breakpoint belongs on the earlier block"
+],
+"answer": [
+0
+],
+"exp": "Prompt caching permits mixing TTLs, but longer-TTL breakpoints must come before shorter-TTL ones in the prompt. Put the stable, long-lived prefix at the 1-hour breakpoint and shorter-lived content after it."
+},
+{
+"domain": "Prompt Caching",
+"type": "single",
+"q": "Right after a deployment, a service immediately fans out 40 concurrent requests that share a 50,000-token cached prefix. Monitoring shows all 40 report cache creation and none report cache reads. What change fixes this?",
+"options": [
+"Send one request first and wait until its response begins so the cache entry exists, then fan out the remaining requests",
+"Add a different cache breakpoint to each concurrent request so they stop competing for the same entry",
+"Switch to the 1-hour TTL, since cache reads only start once an entry is older than five minutes",
+"Reduce the prefix below 1,024 tokens so cache entries can be created more quickly"
+],
+"answer": [
+0
+],
+"exp": "A cache entry becomes available only after the first response begins, so simultaneous requests all miss and each writes its own entry. Warming the cache with a single request first lets the rest read from it. TTL and prefix size are not the issue."
+},
+{
+"domain": "Prompt Caching",
+"type": "single",
+"q": "A developer wants to cache a long system prompt that is currently passed as a plain string in the system parameter, and cannot find where to attach cache_control. What is the correct approach?",
+"options": [
+"Pass system as an array of text content blocks and put cache_control on the block that ends the stable portion",
+"Add an anthropic-beta: prompt-caching header, which caches the entire string system prompt automatically",
+"Move the system prompt text into the first user message, since caching is supported only on user content",
+"Wrap the string in XML tags named cache so the API recognizes it as cacheable"
+],
+"answer": [
+0
+],
+"exp": "cache_control is attached to content blocks, so the system prompt must be supplied as a list of text blocks to mark a breakpoint. System prompts are cacheable, and no beta header or special tags are involved."
+},
+{
+"domain": "Thinking & Effort",
+"type": "single",
+"q": "With extended thinking enabled, a response contains a redacted_thinking block alongside normal thinking blocks, and the turn ends with a tool_use block. The developer's code discards any block it cannot display. What should the application do?",
+"options": [
+"Preserve the redacted_thinking block and send it back unmodified with the assistant turn when returning tool results; it need not be displayed",
+"Decrypt its data field locally to recover the underlying reasoning text, and display that recovered reasoning to users in the interface",
+"Strip it from the history, since the API validates only the thinking blocks that contain readable text when a conversation continues",
+"Replace each such block with an empty text block, so that the message structure stays valid while the encrypted content is discarded"
+],
+"answer": [
+0
+],
+"exp": "Redacted thinking is encrypted content that Claude can still use; during tool use the thinking blocks from the last assistant turn must be passed back unchanged. It cannot be decrypted client-side, and removing or altering it breaks continuity or validation."
+},
+{
+"domain": "Models & Batch Processing",
+"type": "single",
+"q": "A 20,000-request batch finishes with most results succeeded, a few errored, and some expired. The team's code treats the batch as done when processing_status is ended. How should the failures be handled?",
+"options": [
+"Read each result's type and resubmit only the errored and expired requests, identified by custom_id, in a new batch",
+"Resubmit the entire 20,000-request batch, since partial results from a batch cannot be used",
+"Wait another 24 hours, since expired requests are retried automatically by the Batches API",
+"Treat the errored results as final and ignore the expired ones, since expiry means the answer was cached"
+],
+"answer": [
+0
+],
+"exp": "A finished batch can contain succeeded, errored, canceled, and expired results. Keep the successful ones and resubmit only the failed requests using their custom_ids. Batches do not auto-retry expired items, and resubmitting everything wastes money."
+},
+{
+"domain": "Models & Batch Processing",
+"type": "multi",
+"q": "A team planning a Message Batches workload holds several beliefs about it. Which TWO are accurate? (Select TWO.)",
+"options": [
+"Batches accept any Messages API request type, including requests that use tools, vision, and system prompts",
+"Each request in a batch is processed independently, so one request cannot depend on another request's output",
+"Requests in a batch share a single conversation context, so later requests can refer to earlier ones",
+"Results are returned in submission order, so matching results by position is safe and custom_id is optional"
+],
+"answer": [
+0,
+1
+],
+"exp": "Batches can carry any request that the Messages API supports, but every request is independent, and results can arrive in any order, which is why a unique custom_id is required on each request."
+},
+{
+"domain": "Models & Batch Processing",
+"type": "single",
+"q": "A team wants to lower the cost of a production extraction workload by moving from its current model to a smaller tier. Which approach is most sound?",
+"options": [
+"Run the existing eval suite on the smaller model with the same task prompts, adjusting them if needed, and adopt it only if it meets the success criteria",
+"Switch based on published benchmark rankings, since task-specific evals add little beyond what the general benchmark scores already indicate",
+"Switch immediately to the smaller model and monitor customer complaints closely, reverting to the current model if the complaints start to increase",
+"Keep the current model and lower max_tokens, since output length is the main driver of per-request cost for extraction workloads like this one"
+],
+"answer": [
+0
+],
+"exp": "Model choices should be validated against your own success criteria with task-specific evals before cutover. General benchmarks may not reflect your task, and using customers as the test is risky. Lowering max_tokens does not guarantee savings for short extraction outputs."
+},
+{
+"domain": "Models & Batch Processing",
+"type": "multi",
+"q": "A high-volume classifier sends a 6,000-token instruction block plus a 200-token ticket and needs only a short label back. Which TWO changes lower cost without reducing label quality? (Select TWO.)",
+"options": [
+"Cache the stable instruction block so repeat requests read it at a fraction of the base input price",
+"Request only the label, for example through structured outputs, and set max_tokens to a small realistic bound",
+"Raise the effort level so the model reasons more and can do without the instruction block",
+"Append extra few-shot examples to every request so the model needs fewer output tokens"
+],
+"answer": [
+0,
+1
+],
+"exp": "The large prefix is identical across requests, which is exactly what prompt caching discounts, and constraining output to a short label with a realistic max_tokens limits output spend. More effort or more examples add tokens and cost."
+},
+{
+"domain": "Context Management",
+"type": "single",
+"q": "An agent uses context editing to clear old tool results automatically. The clearing also removes the results of its read_memory tool, which the agent still needs later in the task. How can the team protect those results while still clearing everything else?",
+"options": [
+"Configure the clearing strategy to exclude read_memory from clearing, using the exclude_tools setting",
+"Move the memory contents into the system prompt and remove the read_memory tool from the request",
+"Raise the clearing trigger threshold to the full context window, which stops all clearing",
+"Switch to prompt caching on the tool results, since cached tool results are never cleared"
+],
+"answer": [
+0
+],
+"exp": "The tool-result clearing strategy can keep recent results and exclude named tools from being cleared. Removing the tool or disabling clearing defeats the purpose, and prompt caching is a cost optimization that does not change what context editing clears."
+},
+{
+"domain": "Agent Skills",
+"type": "single",
+"q": "A Skill bundles a validate.py script. Token usage is high because Claude opens the script and loads its entire source into context before using it. How should the Skill be adjusted?",
+"options": [
+"State in SKILL.md that Claude should run the script rather than read it, so only its output enters context",
+"Paste the script's source into the description field so Claude already has it when the Skill is listed",
+"Rename the script with a .txt extension so that Claude treats it as documentation instead of code",
+"Remove the script and describe its logic in prose, which always uses fewer tokens than running a script"
+],
+"answer": [
+0
+],
+"exp": "Skills can include executable scripts. If the instructions make clear that Claude should execute the script, only the output consumes context, which is more efficient and more reliable than regenerating or reading the code. The description field is size-limited and always loaded."
+},
+{
+"domain": "Security",
+"type": "single",
+"q": "A startup ships a mobile app that calls the Claude API directly, with the API key stored in the app bundle. Users have extracted the key and run up charges. What is the correct architecture?",
+"options": [
+"Route requests through the company's own backend, which holds the key, authenticates users, and applies per-user limits",
+"Obfuscate the key inside the app bundle using a commercial code-hardening tool, and rotate the key every month as an added control",
+"Encrypt the key with a static secret and store the encrypted value in the app bundle, with the decryption routine compiled into the app",
+"Create one workspace per user and ship each user's own key inside each application update, so that charges are tracked separately per person"
+],
+"answer": [
+0
+],
+"exp": "Keys in client applications can always be extracted, so the key must stay server-side behind a backend that authenticates users and enforces limits. Obfuscation and bundled encryption only slow attackers down, and per-user keys shipped in the app have the same weakness."
+},
+{
+"domain": "Security",
+"type": "single",
+"q": "A text-to-SQL agent connects with a database account that has full administrative rights. The system prompt says never to run DROP, DELETE, or UPDATE statements, yet an adversarial user message got the agent to attempt a DROP TABLE. Which fix is most robust?",
+"options": [
+"Connect through a database role with read-only permissions on only the required tables, so destructive statements fail whatever the model attempts",
+"Strengthen the prompt with capitalized warnings and repeat the prohibition at the end of the prompt",
+"Add a second model that reviews each SQL statement and approves it, and execute approved statements with the existing administrative account",
+"Lower the temperature so the model follows the prohibition more consistently across requests"
+],
+"answer": [
+0
+],
+"exp": "Least privilege enforces the restriction outside the model, so it holds even if the model is manipulated. Prompt wording, sampling settings, and a model-based reviewer can all be bypassed, and the last still leaves administrator rights in place."
+},
+{
+"domain": "Security",
+"type": "single",
+"q": "A developer puts a third-party API token in the system prompt so Claude can include it in tool calls, adding the instruction \"never reveal this token to users\". Which statement is accurate?",
+"options": [
+"Prompt contents can be extracted by determined users, so keep secrets in server-side tool code and let Claude only request the action",
+"The instruction guarantees nondisclosure, because Claude cannot output text that appears in its system prompt",
+"The token is safe if it is Base64-encoded in the prompt, since the model cannot decode it",
+"It is safe in a system prompt but not in a user message, since system prompt contents are never returned to clients"
+],
+"answer": [
+0
+],
+"exp": "Anything placed in the context can potentially be elicited, and instructions are not a guarantee. The tool implementation, running on your server, should hold credentials and perform the authenticated call. Encoding does not stop a model from decoding or repeating content."
+},
+{
+"domain": "Security",
+"type": "multi",
+"q": "A team wants to connect a community-built MCP server to its production coding agent. Which TWO controls address the risk that the server's tool descriptions or outputs contain malicious instructions? (Select TWO.)",
+"options": [
+"Review the server's code and tool descriptions, run only trusted servers, and pin the version you reviewed",
+"Require approval for tool calls with side effects and give the server's credentials only the access it needs",
+"Rely on the server's tool annotations, since a readOnlyHint guarantees the tool cannot change anything",
+"Allow all of the server's tools automatically, since Claude detects and refuses injected instructions reliably"
+],
+"answer": [
+0,
+1
+],
+"exp": "Third-party MCP servers can inject instructions through descriptions and results, so vet and pin them, scope their credentials, and require human approval for side-effecting actions. Annotations are advisory hints from the server, and models are not a reliable defense on their own."
+},
+{
+"domain": "RAG & Retrieval",
+"type": "single",
+"q": "A RAG system chunks quarterly filings. A chunk reading \"Revenue grew 3% over the previous quarter\" is often retrieved for the wrong company and period because the chunk lacks context. Which technique does Anthropic describe to address this?",
+"options": [
+"Contextual retrieval: prepend short, chunk-specific context (company, period) to each chunk before embedding and indexing, using Claude with prompt caching to limit the cost",
+"Increase the chunk size to the entire filing, so that every chunk carries its own company and period context along with the figures it contains",
+"Strip all numbers from chunks before embedding, so that vector search matches on the topic of the passage rather than on the specific figures",
+"Raise the embedding dimension without changing the chunk text, so that the resulting vectors capture finer distinctions between similar passages"
+],
+"answer": [
+0
+],
+"exp": "Contextual retrieval adds explanatory context to each chunk (and to its BM25 index entry), improving retrieval accuracy; prompt caching keeps the cost of generating that context low. Whole-document chunks lose precision, and removing numbers or enlarging vectors does not supply the missing context."
+},
+{
+"domain": "RAG & Retrieval",
+"type": "multi",
+"q": "A RAG pipeline's retrieval often misses exact identifiers such as error codes and product SKUs, and the top few chunks sent to Claude are frequently not the most relevant. Which TWO changes help? (Select TWO.)",
+"options": [
+"Combine embedding-based semantic search with BM25 lexical search so that exact terms are matched",
+"Retrieve a larger candidate set, rerank it, and pass only the top few chunks to Claude",
+"Use embeddings alone with a higher similarity threshold, since vectors capture exact identifiers perfectly",
+"Pass all retrieved chunks in random order so that no relevant chunk is excluded"
+],
+"answer": [
+0,
+1
+],
+"exp": "Hybrid retrieval combines semantic and lexical matching, which handles identifiers, and reranking improves the ordering of candidates so only the best go into the prompt. Embeddings alone often miss exact strings, and unranked bulk context adds noise."
+},
+{
+"domain": "Evaluation",
+"type": "single",
+"q": "A team iterates on a prompt against the same 40 examples until all pass, then reports 100% accuracy as the expected production quality. Production quality turns out noticeably lower. What is the most likely issue and fix?",
+"options": [
+"The prompt was overfit to the tuning examples; evaluate on a held-out set that was not used for iteration and resembles real traffic",
+"Behavior differs between environments, so set temperature to zero in production so that it reproduces the results seen during tuning",
+"100% on 40 examples proves the prompt is correct, so the drop in production quality must come from outages or errors in the API",
+"The evaluation should use fewer examples, so the prompt can be tuned faster and the team can finish the work before the planned launch"
+],
+"answer": [
+0
+],
+"exp": "Tuning on the same examples used to measure quality inflates results. Use a separate held-out set that reflects real traffic, including edge cases, to estimate production performance."
+},
+{
+"domain": "Evaluation",
+"type": "multi",
+"q": "A team uses Claude as a grader for open-ended support replies. Which TWO practices make the grading more reliable? (Select TWO.)",
+"options": [
+"Give a clear, specific rubric and have the grader reason through it before emitting a discrete verdict that you parse",
+"Periodically compare the grader's verdicts with human judgments on a sample to check that they agree",
+"Ask the grader to output its verdict first and its explanation afterwards, so the verdict is not influenced by lengthy reasoning",
+"Show the grader which model produced each reply so it can adjust its expectations to that model's usual quality"
+],
+"answer": [
+0,
+1
+],
+"exp": "Reasoning before the verdict generally improves grading accuracy, and discrete verdicts against a specific rubric are easier to aggregate. Calibrating against human judgments confirms the grader is measuring what you intend. Verdict-first ordering reduces the benefit of reasoning, and revealing the producing model invites bias."
+},
+{
+"domain": "Messages API",
+"type": "single",
+"q": "A service wraps every official-SDK call in its own five-attempt retry loop with a fixed one-second sleep. During a spike of overloaded_error responses, the loops make the overload worse. What is the best fix?",
+"options": [
+"Rely on the SDK's built-in retries with exponential backoff, configure max_retries and timeouts as needed, and avoid layered fixed-interval loops",
+"Remove all retries and treat 429 and 529 responses as permanent failures, so that the service never adds traffic while the API is busy",
+"Increase the retry loop to fifty attempts, so that every request eventually succeeds as soon as the overload on the API has cleared up",
+"Retry 400 invalid_request_error responses as well, since malformed requests will often succeed on a later attempt once the API has recovered"
+],
+"answer": [
+0
+],
+"exp": "The official SDKs automatically retry connection errors, 429s, and 5xx errors (including 529) with backoff, and the behavior is configurable. Stacking fixed-interval loops multiplies traffic during overload. Invalid requests (400) will not succeed on retry."
+},
+{
+"domain": "Prompt Engineering",
+"type": "single",
+"q": "An application must show end users only a final recommendation, but answer quality is better when Claude reasons step by step first. The model is not using extended thinking. Which prompt design lets the application reliably extract just the recommendation?",
+"options": [
+"Ask Claude to reason inside <thinking> tags and give the final recommendation inside <answer> tags, then parse the content of <answer>",
+"Tell Claude to think silently and write only the recommendation, since reasoning that is not written out still improves quality",
+"Ask for the recommendation first, then the justification, and show users only the first sentence of the response",
+"Set max_tokens to 50 so that only the final conclusion fits within the response"
+],
+"answer": [
+0
+],
+"exp": "Claude reasons better when it can write its thinking out, and XML tags give the application a dependable way to separate reasoning from the final answer. Silent thinking without extended thinking does not happen, and truncating output only cuts the answer."
+},
+{
+"domain": "Messages API",
+"type": "single",
+"q": "A chat interface waits for the complete response before showing anything. Users report that the assistant feels slow, although a typical response takes about eight seconds to generate in total. Which change most improves perceived responsiveness without changing the model or the output?",
+"options": [
+"Enable streaming so text appears as it is generated and users see the first tokens within moments",
+"Move the requests to the Message Batches API, which returns results faster than synchronous requests",
+"Lower max_tokens so every response is cut off earlier, regardless of whether the answer is complete",
+"Raise the effort level so that the model finishes its reasoning before the first token is produced"
+],
+"answer": [
+0
+],
+"exp": "Streaming reduces time to first visible output, which is what users perceive as responsiveness, while total generation time stays the same. Batches are asynchronous and slower, truncating output harms answers, and higher effort typically adds latency."
+}
+]
